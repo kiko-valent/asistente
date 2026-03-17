@@ -1,0 +1,10 @@
+services:
+  assistant:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      # This maps the local ./data folder to /app/data inside the container.
+      # The SQLite database is stored here and will NOT be lost on restart or redeploy.
+      - ./data:/app/data
+    # No ports needed — the bot uses long-polling, not webhooks
