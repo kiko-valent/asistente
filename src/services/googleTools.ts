@@ -14,11 +14,63 @@ function resolveGogBinary(): string {
 }
 
 // ---------------------------------------------------------------------------
+// Token manager: fetches a Google access token using the stored refresh token
+// Passes it to gog via GOG_ACCESS_TOKEN — bypasses keyring entirely
+// ---------------------------------------------------------------------------
+let cachedAccessToken: string | null = null;
+let tokenExpiry = 0;
+
+async function fetchGogAccessToken(): Promise<string | null> {
+  if (!config.gogCredentialsJson || !config.gogRefreshTokenJson) return null;
+  if (cachedAccessToken && Date.now() < tokenExpiry) return cachedAccessToken;
+
+  try {
+    const creds = JSON.parse(config.gogCredentialsJson) as Record<string, unknown>;
+    // Supports both {"installed":{...}} (client_secret.json) and {"client_id":...} formats
+    const credsInner = (creds['installed'] ?? creds) as Record<string, unknown>;
+    const clientId = String(credsInner['client_id']);
+    const clientSecret = String(credsInner['client_secret']);
+
+    const tokens = JSON.parse(config.gogRefreshTokenJson) as Record<string, unknown>;
+    const refreshToken = String(tokens['refresh_token']);
+
+    const body = new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    });
+
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+
+    const data = await response.json() as { access_token?: string; expires_in?: number; error?: string };
+
+    if (!data.access_token) {
+      logger.warn(`Failed to refresh Google access token: ${data.error ?? 'unknown error'}`);
+      return null;
+    }
+
+    cachedAccessToken = data.access_token;
+    tokenExpiry = Date.now() + ((data.expires_in ?? 3600) - 120) * 1000;
+    logger.info('Google access token refreshed');
+    return cachedAccessToken;
+  } catch (err) {
+    logger.warn('Error refreshing Google access token:', err);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Internal: run the gog CLI safely (no shell, so no injection risk)
 // ---------------------------------------------------------------------------
-function runGog(args: string[], input?: string): string {
+function runGog(args: string[], input?: string, accessToken?: string): string {
   const env = { ...process.env };
   if (config.gogAccount) env['GOG_ACCOUNT'] = config.gogAccount;
+  if (accessToken) env['GOG_ACCESS_TOKEN'] = accessToken;
 
   const binary = resolveGogBinary();
   const result = spawnSync(binary, args, {
@@ -48,18 +100,21 @@ export async function executeGogTool(
 ): Promise<string> {
   logger.info(`Executing Google tool: ${name}`, args);
 
+  const accessToken = await fetchGogAccessToken() ?? undefined;
+  const run = (cliArgs: string[], input?: string) => runGog(cliArgs, input, accessToken);
+
   try {
     switch (name) {
       case 'gmail_search': {
         const cliArgs = ['gmail', 'search', String(args['query']), '--json'];
         if (args['max']) cliArgs.push('--max', String(args['max']));
-        return runGog(cliArgs);
+        return run(cliArgs);
       }
 
       case 'gmail_messages_search': {
         const cliArgs = ['gmail', 'messages', 'search', String(args['query']), '--json'];
         if (args['max']) cliArgs.push('--max', String(args['max']));
-        return runGog(cliArgs);
+        return run(cliArgs);
       }
 
       case 'gmail_send': {
@@ -69,7 +124,7 @@ export async function executeGogTool(
           '--subject', String(args['subject']),
           '--body-file', '-',
         ];
-        return runGog(cliArgs, String(args['body']));
+        return run(cliArgs, String(args['body']));
       }
 
       case 'calendar_list_events': {
@@ -80,7 +135,7 @@ export async function executeGogTool(
           '--to', String(args['to']),
           '--json',
         ];
-        return runGog(cliArgs);
+        return run(cliArgs);
       }
 
       case 'calendar_create_event': {
@@ -92,19 +147,19 @@ export async function executeGogTool(
           '--to', String(args['to']),
         ];
         if (args['event_color']) cliArgs.push('--event-color', String(args['event_color']));
-        return runGog(cliArgs);
+        return run(cliArgs);
       }
 
       case 'drive_search': {
         const cliArgs = ['drive', 'search', String(args['query']), '--json'];
         if (args['max']) cliArgs.push('--max', String(args['max']));
-        return runGog(cliArgs);
+        return run(cliArgs);
       }
 
       case 'contacts_list': {
         const cliArgs = ['contacts', 'list', '--json'];
         if (args['max']) cliArgs.push('--max', String(args['max']));
-        return runGog(cliArgs);
+        return run(cliArgs);
       }
 
       case 'sheets_get': {
@@ -114,7 +169,7 @@ export async function executeGogTool(
           String(args['range']),
           '--json',
         ];
-        return runGog(cliArgs);
+        return run(cliArgs);
       }
 
       case 'sheets_update': {
@@ -125,11 +180,11 @@ export async function executeGogTool(
           '--values-json', String(args['values_json']),
           '--input', 'USER_ENTERED',
         ];
-        return runGog(cliArgs);
+        return run(cliArgs);
       }
 
       case 'docs_cat': {
-        return runGog(['docs', 'cat', String(args['doc_id'])]);
+        return run(['docs', 'cat', String(args['doc_id'])]);
       }
 
       default:

@@ -35,6 +35,8 @@ export const config = {
   // Google Workspace (gog CLI)
   gogAccount: process.env.GOG_ACCOUNT ?? '',
   gogPath: process.env.GOG_PATH ?? '',
+  gogCredentialsJson: process.env.GOG_CREDENTIALS_JSON ?? '',
+  gogRefreshTokenJson: process.env.GOG_REFRESH_TOKEN_JSON ?? '',
 
   // App
   logLevel: (process.env.LOG_LEVEL ?? 'info') as LogLevel,
