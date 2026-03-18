@@ -1,17 +1,23 @@
 #!/bin/sh
-# Set up gog Google Workspace auth on container start
-# The gogcli-config volume must contain credentials.json and refresh_token.json
+# Set up gog Google Workspace auth from environment variables
+# GOG_CREDENTIALS_JSON and GOG_REFRESH_TOKEN_JSON must be set in .env
 
-GOG_CONFIG_DIR=/app/gogcli-config
+if [ -n "$GOG_CREDENTIALS_JSON" ] && [ -n "$GOG_REFRESH_TOKEN_JSON" ]; then
+  echo "[entrypoint] Configuring gog auth from environment..."
 
-if [ -f "$GOG_CONFIG_DIR/credentials.json" ] && [ -f "$GOG_CONFIG_DIR/refresh_token.json" ]; then
-  echo "[entrypoint] Configuring gog auth..."
+  SETUP_DIR=/tmp/gogcli-setup
+  mkdir -p "$SETUP_DIR"
+  printf '%s' "$GOG_CREDENTIALS_JSON"  > "$SETUP_DIR/credentials.json"
+  printf '%s' "$GOG_REFRESH_TOKEN_JSON" > "$SETUP_DIR/refresh_token.json"
+
   gog auth keyring file
-  gog auth credentials "$GOG_CONFIG_DIR/credentials.json"
-  gog auth tokens import "$GOG_CONFIG_DIR/refresh_token.json"
+  gog auth credentials "$SETUP_DIR/credentials.json"
+  gog auth tokens import "$SETUP_DIR/refresh_token.json"
+
+  rm -rf "$SETUP_DIR"
   echo "[entrypoint] gog auth ready"
 else
-  echo "[entrypoint] WARNING: gogcli-config not found — Google Workspace tools will not work"
+  echo "[entrypoint] WARNING: GOG_CREDENTIALS_JSON or GOG_REFRESH_TOKEN_JSON not set — Google Workspace tools disabled"
 fi
 
 exec node dist/index.js

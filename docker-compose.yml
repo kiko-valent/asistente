@@ -6,5 +6,4 @@ services:
     volumes:
       # SQLite database — persists across restarts
       - ./data:/app/data
-      # Google OAuth tokens — contains secrets, never commit this folder
-      - ./gogcli-config:/app/gogcli-config:ro
+      # Google OAuth tokens are injected via GOG_CREDENTIALS_JSON and GOG_REFRESH_TOKEN_JSON env vars
