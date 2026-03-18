@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     env_file: .env
     volumes:
-      # This maps the local ./data folder to /app/data inside the container.
-      # The SQLite database is stored here and will NOT be lost on restart or redeploy.
+      # SQLite database — persists across restarts
       - ./data:/app/data
-    # No ports needed — the bot uses long-polling, not webhooks
+      # Google OAuth tokens — contains secrets, never commit this folder
+      - ./gogcli-config:/app/gogcli-config:ro
