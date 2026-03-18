@@ -1,7 +1,7 @@
 import type { Context } from 'grammy';
 import { withTyping } from '../helpers/sendTyping.js';
 import { ensureActiveConversation, assembleContext } from '../../services/memory.js';
-import { createChatCompletion } from '../../services/openai.js';
+import { runAgentLoop } from '../../services/openai.js';
 import { insertMessage } from '../../db/queries/messages.js';
 import { maybeAutoSummarize } from '../../services/summarizer.js';
 import { logger } from '../../utils/logger.js';
@@ -18,7 +18,7 @@ export async function handleText(ctx: Context, userText: string): Promise<void> 
   // Build context and call AI
   const messages = assembleContext(userId, conversation.id);
 
-  const reply = await withTyping(ctx, () => createChatCompletion(messages));
+  const reply = await withTyping(ctx, () => runAgentLoop(messages));
 
   // Save assistant response
   insertMessage(conversation.id, 'assistant', reply);

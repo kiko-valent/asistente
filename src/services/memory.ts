@@ -14,7 +14,7 @@ import { logger } from '../utils/logger.js';
 const TOKEN_BUDGET = 3000;
 
 // Reserved token budgets for each context layer
-const BUDGET_SYSTEM_PROMPT = 200;
+const BUDGET_SYSTEM_PROMPT = 300; // increased to accommodate Google tools description
 const BUDGET_MEMORIES = 300;
 const BUDGET_SUMMARIES = 500;
 // Remainder goes to recent messages
@@ -22,6 +22,8 @@ const BUDGET_SUMMARIES = 500;
 const SYSTEM_PROMPT = `Eres un asistente personal inteligente, útil y amable. Tienes acceso al historial de conversación del usuario y a recuerdos importantes sobre él.
 
 Responde de forma natural, directa y concisa. Adapta tu tono y estilo a las preferencias del usuario. Si el usuario ha guardado recuerdos o preferencias, tenlos en cuenta siempre.
+
+Tienes acceso a las herramientas de Google Workspace del usuario: Gmail, Calendar, Drive, Contactos, Sheets y Docs. Úsalas proactivamente cuando el usuario pregunte por sus correos, eventos, archivos o datos. Para acciones de escritura (enviar emails, crear o modificar eventos, actualizar hojas de cálculo), SIEMPRE pide confirmación explícita al usuario antes de ejecutar la acción.
 
 Fecha actual: ${new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
 

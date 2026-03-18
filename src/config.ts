@@ -32,6 +32,10 @@ export const config = {
   // Database
   databaseUrl: process.env.DATABASE_URL ?? './data/assistant.db',
 
+  // Google Workspace (gog CLI)
+  gogAccount: process.env.GOG_ACCOUNT ?? '',
+  gogPath: process.env.GOG_PATH ?? '',
+
   // App
   logLevel: (process.env.LOG_LEVEL ?? 'info') as LogLevel,
   nodeEnv: process.env.NODE_ENV ?? 'development',
